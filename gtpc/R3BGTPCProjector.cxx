@@ -1,10 +1,10 @@
 /******************************************************************************
- *   Copyright (C) 2018 GSI Helmholtzzentrum für Schwerionenforschung GmbH    *
- *   Copyright (C) 2018-2025 Members of R3B Collaboration                     *
+ * Copyright (C) 2018-2026 GSI Helmholtzzentrum für Schwerionenforschung GmbH *
+ *         Copyright (C) 2018-2026 Members of R3B Collaboration               *
  *                                                                            *
  *             This software is distributed under the terms of the            *
- *                 GNU Lesser General Public Licence (LGPL) version 3,        *
- *                    copied verbatim in the file "LICENSE".                  *
+ *              GNU Lesser General Public Licence (LGPL) version 3,           *
+ *                     copied verbatim in the file "LICENSE".                 *
  *                                                                            *
  * In applying this license GSI does not waive the privileges and immunities  *
  * granted to it by virtue of its status as an Intergovernmental Organization *
@@ -22,51 +22,111 @@
 #include "TF1.h"
 #include "TVirtualMC.h"
 #include "TVirtualMCStack.h"
+
+#include "TGeoBBox.h"
+#include "TGeoManager.h"
+#include "TGeoNode.h" // also provides TGeoIterator
+#include "TRandom.h"
+
+#include "TMath.h"
+
+#include <algorithm>
+#include <cmath>
+#include <limits>
+#include <vector>
 using namespace std;
 
+// ---------------------------------------------------------------------------
 R3BGTPCProjector::R3BGTPCProjector()
     : FairTask("R3BGTPCProjector")
     , fGTPCPoints(NULL)
-    , fGTPCCalDataCA(NULL)
     , fGTPCProjPoint(NULL)
+    , fGTPCCalDataCA(NULL)
     , MCTrackCA(NULL)
-
+    , fEIonization(0.)
+    , fDriftVelocity(0.)
+    , fTransDiff(0.)
+    , fLongDiff(0.)
+    , fFanoFactor(0.)
+    , fTimeBinSize(0.)
+    , fDriftEField(0.)
+    , fDriftTimeStep(0.)
+    , outputMode(0)
+    , fReadoutSide(+1)
+    , fActiveMinX(0.)
+    , fActiveMaxX(0.)
+    , fActiveMinY(0.)
+    , fActiveMaxY(0.)
+    , fActiveMinZ(0.)
+    , fActiveMaxZ(0.)
+    , fActiveSizeX(0.)
+    , fActiveSizeY(0.)
+    , fActiveSizeZ(0.)
+    , fGeometryConfigured(kFALSE)
+    , fPadRowsX(0)
+    , fPadColumnsZ(0)
+    , fPadSizeXcm(0.)
+    , fPadSizeZcm(0.)
+    , fPadGapXcm(0.)
+    , fPadGapZcm(0.)
+    , fPadGeometryConfigured(kFALSE)
+    //, fUseManualDriftParameters(kFALSE)
+    , fGTPCGasPar(NULL)
+    , fGTPCElecPar(NULL)
+    , fTPCMap(std::make_shared<R3BGTPCMap>())
 {
-    fEIonization = 0;
-    fDriftVelocity = 0;
-    fTransDiff = 0;
-    fLongDiff = 0;
-    fFanoFactor = 0;
-    fTimeBinSize = 0;
-    fHalfSizeTPC_X = 0.;
-    fHalfSizeTPC_Y = 0.;
-    fHalfSizeTPC_Z = 0.;
-    fDetectorType = 0;
-    fDriftTimeStep = 0.;
-    outputMode = 0;
-    fDriftEField = 0;
-    fTPCMap = std::make_shared<R3BGTPCMap>();
 }
+
+// R3BGTPCProjector::~R3BGTPCProjector()
+// {
+
+//     if (fGTPCPoints)
+//     {
+//         fGTPCPoints->Delete();
+//         delete fGTPCPoints;
+//     }
+//     if (fGTPCCalDataCA)
+//     {
+//         fGTPCCalDataCA->Delete();
+//         delete fGTPCCalDataCA;
+//     }
+//     if (MCTrackCA)
+//     {
+//         MCTrackCA->Delete();
+//         delete MCTrackCA;
+//     }
+// }
 
 R3BGTPCProjector::~R3BGTPCProjector()
 {
+    // Input branches are owned by FairRootManager.
+    // fGTPCPoints = NULL;
+    // MCTrackCA = NULL;
 
-    if (fGTPCPoints)
-    {
-        fGTPCPoints->Delete();
-        delete fGTPCPoints;
-    }
-    if (fGTPCCalDataCA)
-    {
-        fGTPCCalDataCA->Delete();
-        delete fGTPCCalDataCA;
-    }
-    if (MCTrackCA)
-    {
-        MCTrackCA->Delete();
-        delete MCTrackCA;
-    }
+    // if (fGTPCCalDataCA)
+    // {
+    //     fGTPCCalDataCA->Delete();
+    //     delete fGTPCCalDataCA;
+    //     fGTPCCalDataCA = NULL;
+    // }
+
+    // if (fGTPCProjPoint)
+    // {
+    //     fGTPCProjPoint->Delete();
+    //     delete fGTPCProjPoint;
+    //     fGTPCProjPoint = NULL;
+    // }
+
+    fGTPCPoints = nullptr;
+    fGTPCProjPoint = nullptr;
+    fGTPCCalDataCA = nullptr;
+    MCTrackCA = nullptr;
+
+    fGTPCGasPar = nullptr;
+    fGTPCElecPar = nullptr;
+
 }
+
 
 void R3BGTPCProjector::SetParContainers()
 {
@@ -83,12 +143,13 @@ void R3BGTPCProjector::SetParContainers()
         return;
     }
 
-    fGTPCGeoPar = (R3BGTPCGeoPar*)rtdb->getContainer("GTPCGeoPar");
-    if (!fGTPCGeoPar)
-    {
-        LOG(fatal) << "R3BGTPCLangevin::SetParContainers: No R3BGTPCGeoPar";
-        return;
-    }
+    // fGTPCGeoPar = (R3BGTPCGeoPar*)rtdb->getContainer("GTPCGeoPar");
+    // if (!fGTPCGeoPar)
+    // {
+    //     LOG(fatal) << "R3BGTPCLangevin::SetParContainers: No R3BGTPCGeoPar";
+    //     return;
+    // }
+
     fGTPCGasPar = (R3BGTPCGasPar*)rtdb->getContainer("GTPCGasPar");
     if (!fGTPCGasPar)
     {
@@ -105,24 +166,169 @@ void R3BGTPCProjector::SetParContainers()
 
 void R3BGTPCProjector::SetParameter()
 {
-    fEIonization = fGTPCGasPar->GetEIonization();     // [GeV]-> typical value for a
-                                                      // gas detector tens of eV
-    fDriftVelocity = fGTPCGasPar->GetDriftVelocity(); // [cm/ns]-> Minos TPC with a Efield=152 V/cm
-    fTransDiff = fGTPCGasPar->GetTransDiff();         // [cm^2/ns]?
-    fLongDiff = fGTPCGasPar->GetLongDiff();           // [cm^2/ns]?
+    if (!fGTPCGasPar || !fGTPCElecPar) { 
+        LOG(error) << "R3BGTPCProjector::SetParameter: GTPCGasPar or GTPCElePar is missing";    
+        return; 
+    }
+
+    // ---------------------------------------------------------
+    // Gas / transport parameters
+    // ---------------------------------------------------------
+    fEIonization = fGTPCGasPar->GetEIonization();     // [GeV]
+    fDriftVelocity = fGTPCGasPar->GetDriftVelocity(); // [cm/ns]
+    fTransDiff = fGTPCGasPar->GetTransDiff();         // [cm^2/ns]
+    fLongDiff = fGTPCGasPar->GetLongDiff();           // [cm^2/ns]
     fFanoFactor = fGTPCGasPar->GetFanoFactor();
-    fHalfSizeTPC_X = fGTPCGeoPar->GetActiveRegionx() / 2.;
-    fHalfSizeTPC_Y = fGTPCGeoPar->GetActiveRegiony() / 2.;
-    fHalfSizeTPC_Z = fGTPCGeoPar->GetActiveRegionz() / 2.;
-    fDetectorType = fGTPCGeoPar->GetDetectorType();
-    fOffsetX = fGTPCGeoPar->GetGladOffsetX(); // X offset [cm]
-    fOffsetZ = fGTPCGeoPar->GetGladOffsetZ(); // Z offset [cm]
 
-    fDriftEField = fGTPCElecPar->GetDriftEField();     // drift E field in V/m
+    // ---------------------------------------------------------
+    // Electronics quantities needed by projector
+    // ---------------------------------------------------------
+    fDriftEField = fGTPCElecPar->GetDriftEField(); // drift E field in V/m
     fDriftTimeStep = fGTPCElecPar->GetDriftTimeStep(); // time step for drift
+    
+    fTimeBinSize = fGTPCElecPar->GetTimeBinSize(); // [ns]
 
-    fGTPCElecPar->GetTimeBinSize(); // [ns]
-    fGTPCElecPar->GetTimeBinSize(); // drift params calculation
+
+    // ---------- Old Implimentation ------------------- //
+
+    // fEIonization = fGTPCGasPar->GetEIonization();     // [GeV]-> typical value for a
+    //                                                   // gas detector tens of eV
+    // fDriftVelocity = fGTPCGasPar->GetDriftVelocity(); // [cm/ns]-> Minos TPC with a Efield=152 V/cm
+    // fTransDiff = fGTPCGasPar->GetTransDiff();         // [cm^2/ns]?
+    // fLongDiff = fGTPCGasPar->GetLongDiff();           // [cm^2/ns]?
+    // fFanoFactor = fGTPCGasPar->GetFanoFactor();
+    // fHalfSizeTPC_X = fGTPCGeoPar->GetActiveRegionx() / 2.;
+    // fHalfSizeTPC_Y = fGTPCGeoPar->GetActiveRegiony() / 2.;
+    // fHalfSizeTPC_Z = fGTPCGeoPar->GetActiveRegionz() / 2.;
+    // fDetectorType = fGTPCGeoPar->GetDetectorType();
+    // fOffsetX = fGTPCGeoPar->GetGladOffsetX(); // X offset [cm]
+    // fOffsetZ = fGTPCGeoPar->GetGladOffsetZ(); // Z offset [cm]
+
+    // fDriftEField = fGTPCElecPar->GetDriftEField();     // drift E field in V/m
+    // fDriftTimeStep = fGTPCElecPar->GetDriftTimeStep(); // time step for drift
+
+    // fGTPCElecPar->GetTimeBinSize(); // [ns]
+    // fGTPCElecPar->GetTimeBinSize(); // drift params calculation
+}
+
+void R3BGTPCProjector::SetReadoutSide(Int_t side)
+{
+    if (side != +1 && side != -1)
+    {
+        LOG(error) << "R3BGTPCProjector::SetReadoutSide: side must be +1 or -1, got "
+                   << side;
+        return;
+    }
+    fReadoutSide = side;
+}
+
+void R3BGTPCProjector::SetPadGeometry(Int_t rowsX,
+                                     Int_t columnsZ,
+                                     Double_t padSizeXcm,
+                                     Double_t padSizeZcm,
+                                     Double_t gapXcm,
+                                     Double_t gapZcm)
+{
+    if (rowsX <= 0 || columnsZ <= 0 ||
+        !std::isfinite(padSizeXcm) || padSizeXcm <= 0. ||
+        !std::isfinite(padSizeZcm) || padSizeZcm <= 0. ||
+        !std::isfinite(gapXcm) || gapXcm < 0. ||
+        !std::isfinite(gapZcm) || gapZcm < 0.)
+    {
+        LOG(error) << "R3BGTPCProjector::SetPadGeometry: invalid pad geometry";
+        fPadGeometryConfigured = kFALSE;
+        return;
+    }
+
+    fPadRowsX = rowsX;
+    fPadColumnsZ = columnsZ;
+    fPadSizeXcm = padSizeXcm;
+    fPadSizeZcm = padSizeZcm;
+    fPadGapXcm = gapXcm;
+    fPadGapZcm = gapZcm;
+    fPadGeometryConfigured = kTRUE;
+}
+
+// void R3BGTPCProjector::SetDriftParameters(Double_t ion, Double_t driftv, Double_t tDiff, Double_t lDiff, Double_t fanoFactor)
+// {
+//     fEIonization = ion;      // [GeV]
+//     fDriftVelocity = driftv; // [cm/ns]
+//     fTransDiff = tDiff;      // [cm^(-1/2)]
+//     fLongDiff = lDiff;       // [cm^(-1/2)]
+//     fFanoFactor = fanoFactor;
+//     fUseManualDriftParameters = kTRUE; // True only when user set the drfir parameters in the macro otherwise defaults from ascii file.
+// }
+
+Bool_t R3BGTPCProjector::ConfigureFromGeometry()
+{
+    fGeometryConfigured = kFALSE;
+
+    if (!gGeoManager || !gGeoManager->GetTopVolume())
+    {
+        LOG(error) << "R3BGTPCProjector::ConfigureFromGeometry: no TGeo geometry loaded";
+        return kFALSE;
+    }
+
+    TGeoIterator it(gGeoManager->GetTopVolume());
+    TGeoNode* node = nullptr;
+    TString activePath;
+
+    while ((node = it())) {
+        if (node->GetVolume() && TString(node->GetVolume()->GetName()) == "Active_region") {
+            it.GetPath(activePath);
+            break;
+        }
+    }
+
+    if (!node) {
+        LOG(error) << "R3BGTPCProjector::ConfigureFromGeometry: Active_region not found";
+        return kFALSE;
+    }
+
+    auto* box = dynamic_cast<TGeoBBox*>(node->GetVolume()->GetShape());
+    if (!box) {
+        LOG(error) << "R3BGTPCProjector::ConfigureFromGeometry: Active_region is not found and not a TGeoBBox";
+        return kFALSE;
+    }
+
+    if (!gGeoManager->cd(activePath.Data())) {
+        LOG(error) << "R3BGTPCProjector::ConfigureFromGeometry: cannot go to " << activePath;
+        return kFALSE;
+    }
+
+    fActiveLocalToMaster = *gGeoManager->GetCurrentMatrix();
+
+    const Double_t* origin = box->GetOrigin();
+    fActiveMinX = origin[0] - box->GetDX();
+    fActiveMaxX = origin[0] + box->GetDX();
+    fActiveMinY = origin[1] - box->GetDY();
+    fActiveMaxY = origin[1] + box->GetDY();
+    fActiveMinZ = origin[2] - box->GetDZ();
+    fActiveMaxZ = origin[2] + box->GetDZ();
+
+    fActiveSizeX = fActiveMaxX - fActiveMinX;
+    fActiveSizeY = fActiveMaxY - fActiveMinY;
+    fActiveSizeZ = fActiveMaxZ - fActiveMinZ;
+
+    if (fActiveSizeX <= 0. || fActiveSizeY <= 0. || fActiveSizeZ <= 0.)
+    {
+        LOG(error) << "R3BGTPCProjector::ConfigureFromGeometry: invalid Active_region dimensions";
+        return kFALSE;
+    }
+
+    fGeometryConfigured = kTRUE;
+    LOG(info) << "R3BGTPCProjector geometry: ";
+    LOG(info) << "R3BGTPCProjector: Active_region path = " << activePath;
+    LOG(info) << "R3BGTPCProjector: local active X/Y/Z = " << fActiveMinX << " .. " << fActiveMaxX
+    << " ... " << fActiveMinY << " .. " << fActiveMaxY << " ... " << fActiveMinZ << " .. " << fActiveMaxZ << " cm";
+    LOG(info) << "  local size X/Y/Z [cm]  = " << fActiveSizeX << " / " << fActiveSizeY << " / " << fActiveSizeZ;          
+    LOG(info) << "R3BGTPCProjector: local readout side = "
+              << (fReadoutSide > 0 ? "+Y" : "-Y")
+              << ", plane Y = "
+              << (fReadoutSide > 0 ? fActiveMaxY : fActiveMinY)
+              << " cm";
+
+    return kTRUE;
 }
 
 InitStatus R3BGTPCProjector::Init()
@@ -134,81 +340,150 @@ InitStatus R3BGTPCProjector::Init()
         return kFATAL;
     }
     // Input: TClonesArray of R3BGTPCPoints
-    if ((TClonesArray*)ioman->GetObject("GTPCPoint") == nullptr)
-    {
-        LOG(fatal) << "R3BGTPCProjector::Init No GTPCPoint!";
-        return kFATAL;
-    }
+    // if ((TClonesArray*)ioman->GetObject("GTPCPoint") == nullptr)
+    // {
+    //     LOG(fatal) << "R3BGTPCProjector::Init No GTPCPoint!";
+    //     return kFATAL;
+    // }
+    // fGTPCPoints = (TClonesArray*)ioman->GetObject("GTPCPoint");
+    // // Input: TClonesArray of R3BMCTrack
+    // if ((TClonesArray*)ioman->GetObject("MCTrack") == nullptr)
+    // {
+    //     LOG(fatal) << "R3BMCTrack::Init No MCTrack!";
+    //     return kFATAL;
+    // }
+
+    //MCTrackCA = (TClonesArray*)ioman->GetObject("MCTrack");
+
     fGTPCPoints = (TClonesArray*)ioman->GetObject("GTPCPoint");
-    // Input: TClonesArray of R3BMCTrack
-    if ((TClonesArray*)ioman->GetObject("MCTrack") == nullptr)
+    if (!fGTPCPoints)
     {
-        LOG(fatal) << "R3BMCTrack::Init No MCTrack!";
+        LOG(error) << "R3BGTPCProjector::Init: No GTPCPoint branch";
         return kFATAL;
     }
+
     MCTrackCA = (TClonesArray*)ioman->GetObject("MCTrack");
-
-    fGTPCCalDataCA = new TClonesArray("R3BGTPCCalData");
-    fGTPCProjPoint = new TClonesArray("R3BGTPCProjPoint");
-    if (outputMode == 0)
-    { // Output: TClonesArray of R3BGTPCCalData
-        ioman->Register("GTPCCalData", GetName(), fGTPCCalDataCA, kTRUE);
-    }
-    else if (outputMode == 1)
-    { // Output: TClonesArray of R3BGTPCProjPoint
-
-        ioman->Register("GTPCProjPoint", GetName(), fGTPCProjPoint, kTRUE);
+    if (!MCTrackCA)
+    {
+        LOG(error) << "R3BGTPCProjector::Init: No MCTrack branch";
+        return kFATAL;
     }
 
+    
+    // --------------- to do make it better ---------- //
+    if (!fGTPCGasPar || !fGTPCElecPar) SetParContainers();
+
+    if (!fGTPCGasPar || !fGTPCElecPar) return kFATAL;
+    
     SetParameter();
 
-    // Pad plane generation
-    fTPCMap->GeneratePadPlane();
-    fPadPlane = fTPCMap->GetPadPlane();
-
-    if (fPadPlane == NULL)
-    {
-        std::cout << " R3BGTPCProjector::Init() error! - Could not retrieve pad "
-                     "plane. Exiting..."
-                  << "\n";
-        return kERROR;
+    if (fEIonization <= 0. || fDriftVelocity <= 0. || fTransDiff <= 0. || fLongDiff <= 0. || fFanoFactor <=0.) {
+        LOG(error) << "R3BGTPCProjector::Init: EIonization must be set properly before running ";
+        return kFATAL;
     }
+
+    if (!ConfigureFromGeometry()) return kFATAL;
+
+    if (!fPadGeometryConfigured) {
+        LOG(error)
+            << "R3BGTPCProjector::Init: SetPadGeometry(...) must be called "
+            << "before run->Init()";
+        return kFATAL;
+    }
+
+    if (!fTPCMap->ConfigurePadGeometry(fActiveSizeX, fActiveSizeZ, fPadRowsX, fPadColumnsZ, fPadSizeXcm, fPadSizeZcm, fPadGapXcm, fPadGapZcm)) {
+        LOG(error) << "R3BGTPCProjector::Init: pad matrix does not fit Active_region";
+        return kFATAL;
+    }
+
+    fTPCMap->GeneratePadPlane();
+    //fPadPlane = fTPCMap->GetPadPlane();
+    if (!fTPCMap->GetPadPlane()) {
+        LOG(error) << "R3BGTPCProjector::Init: failed to create virtual pad plane";
+        return kFATAL;
+    }
+
+    if (outputMode == 0) { // Output: TClonesArray of R3BGTPCCalData
+        //ioman->Register("GTPCCalData", GetName(), fGTPCCalDataCA, kTRUE);
+
+        fGTPCCalDataCA = new TClonesArray("R3BGTPCCalData");
+        ioman->Register("GTPCCalData", GetName(), fGTPCCalDataCA, kTRUE);
+        
+    }
+    else if (outputMode == 1) { // Output: TClonesArray of R3BGTPCProjPoint
+        //ioman->Register("GTPCProjPoint", GetName(), fGTPCProjPoint, kTRUE);
+
+        fGTPCProjPoint = new TClonesArray("R3BGTPCProjPoint");
+        ioman->Register("GTPCProjPoint", GetName(), fGTPCProjPoint, kTRUE);
+    }
+    else {
+        LOG(error) << "R3BGTPCProjector::Init: Invalid outputMode = " << outputMode;
+        return kFATAL;
+    }
+
+    // LOG(info) << "R3BGTPCProjector: configured " << fTPCMap->GetNumberOfPads() << " pads ("
+    //           << fPadRowsX << " x " << fPadColumnsZ << ")";
+
+    // Pad plane generation
+    // fTPCMap->GeneratePadPlane();
+    // fPadPlane = fTPCMap->GetPadPlane();
+
+    // if (fPadPlane == NULL)
+    // {
+    //     std::cout << " R3BGTPCProjector::Init() error! - Could not retrieve pad "
+    //                  "plane. Exiting..."
+    //               << "\n";
+    //     return kERROR;
+    // }
+
+     LOG(info) << "R3BGTPCProjector pad setup:";
+    LOG(info) << "  rows X / columns Z     = " << fTPCMap->GetNumberOfRowsX() << " / "
+              << fTPCMap->GetNumberOfColumnsZ();
+    LOG(info) << "  number of pads         = " << fTPCMap->GetNumberOfPads();
+    LOG(info) << "  pad X/Z [cm]           = " << fTPCMap->GetPadSizeXcm() << " / " << fTPCMap->GetPadSizeZcm();
+    LOG(info) << "  gap X/Z [cm]           = " << fTPCMap->GetGapXcm() << " / " << fTPCMap->GetGapZcm();
+    LOG(info) << "  physical span X/Z [cm] = " << fTPCMap->GetGridSpanXcm() << " / "
+              << fTPCMap->GetGridSpanZcm();
 
     return kSUCCESS;
 }
+
+// InitStatus R3BGTPCProjector::ReInit()
+// {
+//     SetParContainers();
+//     return kSUCCESS;
+// }
 
 InitStatus R3BGTPCProjector::ReInit()
 {
     SetParContainers();
+
+    if (!fGTPCGasPar || !fGTPCElecPar)
+        return kFATAL;
+
+    SetParameter();
+
+    if (!ConfigureFromGeometry())
+        return kFATAL;
+
     return kSUCCESS;
 }
 
-void R3BGTPCProjector::SetDriftParameters(Double_t ion,
-                                          Double_t driftv,
-                                          Double_t tDiff,
-                                          Double_t lDiff,
-                                          Double_t fanoFactor)
-{
-    fEIonization = ion;      // [GeV]
-    fDriftVelocity = driftv; // [cm/ns]
-    fTransDiff = tDiff;      // [cm^(-1/2)]
-    fLongDiff = lDiff;       // [cm^(-1/2)]
-    fFanoFactor = fanoFactor;
-}
 
 void R3BGTPCProjector::Exec(Option_t*)
 {
 
-    if (outputMode == 0)
-    {
-        fGTPCCalDataCA->Clear("C");
+    if (outputMode == 0) {
+        //fGTPCCalDataCA->Clear("C");
+        fGTPCCalDataCA->Delete();
     }
-    else if (outputMode == 1)
-    {
-        fGTPCProjPoint->Clear("C");
+    else if (outputMode == 1) {
+        //fGTPCProjPoint->Clear("C");
+        fGTPCProjPoint->Delete();
     }
 
-    Int_t nPoints = fGTPCPoints->GetEntries();
+    //Int_t nPoints = fGTPCPoints->GetEntries();
+    Int_t nPoints = fGTPCPoints ? fGTPCPoints->GetEntriesFast() : 0;
     LOG(info) << "R3BGTPCProjector: processing " << nPoints << " points";
     if (nPoints < 2)
     {
@@ -216,48 +491,64 @@ void R3BGTPCProjector::Exec(Option_t*)
         return;
     }
 
-    R3BGTPCPoint* aPoint;
+    //R3BGTPCPoint* aPoint;
     Int_t presentTrackID = -10; // control of the point trackID
+
+    Bool_t readyToProject = kFALSE;
+
     Double_t xPre, yPre, zPre;
     Double_t xPost, yPost, zPost;
     Double_t projX, projZ, projTime;
     Double_t energyDep = 0.;
     Double_t timeBeforeDrift = 0.;
-    Bool_t readyToProject = kFALSE;
+    // Bool_t readyToProject = kFALSE;
     Bool_t padFound = kFALSE;
-    Int_t electrons = 0;
+    Double_t electrons = 0.0;
     Int_t flucElectrons = 0;
+    Double_t sigmaElectrons = 0.0;
     Int_t generatedElectrons = 0;
     Double_t stepX, stepY, stepZ;
     Double_t driftDistance, driftTime;
     Double_t sigmaLongAtPadPlane;
     Double_t sigmaTransvAtPadPlane;
     Int_t evtID = 0;
-    for (Int_t i = 0; i < nPoints; i++)
-    {
-        aPoint = (R3BGTPCPoint*)fGTPCPoints->At(i);
+
+    for (Int_t i = 0; i < nPoints; i++) {
+
+        //aPoint = (R3BGTPCPoint*)fGTPCPoints->At(i);
+        R3BGTPCPoint* aPoint = (R3BGTPCPoint*)fGTPCPoints->At(i);
+        
         evtID = aPoint->GetEventID();
+        
         Int_t PDGCode = 0, MotherId = 0;
+        
         Double_t Vertex_x0 = 0, Vertex_y0 = 0, Vertex_z0 = 0, Vertex_px0 = 0, Vertex_py0 = 0, Vertex_pz0 = 0;
-        if (aPoint->GetTrackStatus() == 11000 || aPoint->GetTrackStatus() == 10010010 ||
-            aPoint->GetTrackStatus() == 10010000 || aPoint->GetTrackStatus() == 10011000)
-        {
+
+        if (aPoint->GetTrackStatus() == 11000 || aPoint->GetTrackStatus() == 10010010 || aPoint->GetTrackStatus() == 10010000 || aPoint->GetTrackStatus() == 10011000) {
             // entering the gas volume or new track inside the gas (is 10010010 or
             // 10010000??)
             presentTrackID = aPoint->GetTrackID();
+
             xPre = aPoint->GetX();
             yPre = aPoint->GetY();
             zPre = aPoint->GetZ();
+
             // std::cout<<" xPre "<<xPre<<" - yPre "<<yPre<<" - zPre "<<zPre<<"\n";
             R3BMCTrack* Track = (R3BMCTrack*)MCTrackCA->At(presentTrackID);
+
+            if(!Track) continue;
+
             PDGCode = Track->GetPdgCode();
             MotherId = Track->GetMotherId();
+
             Vertex_x0 = Track->GetStartX();
             Vertex_y0 = Track->GetStartY();
             Vertex_z0 = Track->GetStartZ();
+            
             Vertex_px0 = Track->GetPx();
             Vertex_py0 = Track->GetPy();
             Vertex_pz0 = Track->GetPz();
+
             readyToProject = kTRUE;
             continue; // no energy deposited in this point, just taking in entrance
                       // coordinates
@@ -276,7 +567,7 @@ void R3BGTPCProjector::Exec(Option_t*)
                 break;
             }
             if (aPoint->GetTrackStatus() == 10100 || aPoint->GetTrackStatus() == 1000000)
-            { // exiting the gas volume or dissappearing
+            { // exiting the gas volume or disappearing
                 readyToProject = kFALSE;
             }
 
@@ -286,34 +577,107 @@ void R3BGTPCProjector::Exec(Option_t*)
             energyDep = aPoint->GetEnergyLoss();
             timeBeforeDrift = aPoint->GetTime();
         }
-        // primary electrons produced by the ionization
+
+        // ---- Master -> local Active_region coordinates
+        Double_t preMaster[3] = { xPre, yPre, zPre };
+        Double_t postMaster[3] = { xPost, yPost, zPost };
+        Double_t preLocal[3] = { 0., 0., 0. };
+        Double_t postLocal[3] = { 0., 0., 0. };
+ 
+        fActiveLocalToMaster.MasterToLocal(preMaster, preLocal);
+        fActiveLocalToMaster.MasterToLocal(postMaster, postLocal);
+
+        // 1. Calculate average primary electrons produced by the ionization
         electrons = energyDep / fEIonization;
+
         // electron number fluctuates as the square root of the
         // Fano factor times the number of electrons
-        flucElectrons = pow(fFanoFactor * electrons, 0.5);
-        generatedElectrons = gRandom->Gaus(electrons, flucElectrons); // generated electrons
+        
+        // Line below is misleading old implimentation, as a Fanofactor is F = sigma^2 / mu (mean so electrons)
+        // Since Fano factor is inserted as a input it is actually calculating the variance (sigma) 
+        //flucElectrons = pow(fFanoFactor * electrons, 0.5);
+        
+        // Therefore it should actually be 
+        // 2. Correct Equation: This calculates SIGMA (standard deviation), not the count.
+        sigmaElectrons = sqrt(fFanoFactor * electrons);
+ 
+        //generatedElectrons = gRandom->Gaus(electrons, flucElectrons); // generated electrons
+        
+        // 3. To protect againts negative or nonphysical gausssian fluc, so rounded to nearest
+        generatedElectrons = std::max(0, static_cast<Int_t>(std::lround(gRandom->Gaus(electrons, sigmaElectrons))));
+
+        if (generatedElectrons <= 0){
+            xPre = xPost;
+            yPre = yPost;
+            zPre = zPost;
+            continue;
+        }
 
         // step in each direction for an homogeneous electron creation position
         // along the track
-        stepX = (xPost - xPre) / generatedElectrons;
-        stepY = (yPost - yPre) / generatedElectrons;
-        stepZ = (zPost - zPre) / generatedElectrons;
+        // stepX = (xPost - xPre) / generatedElectrons;
+        // stepY = (yPost - yPre) / generatedElectrons;
+        // stepZ = (zPost - zPre) / generatedElectrons;
+
+        stepX = (postLocal[0] - preLocal[0]) / generatedElectrons;
+        stepY = (postLocal[1] - preLocal[1]) / generatedElectrons;
+        stepZ = (postLocal[2] - preLocal[2]) / generatedElectrons;
 
         // taken a mean driftDistance for the calculation of the sigmaLong and
         // sigmaTrans improve (make the calculation individual for electron) if
         // needed, but probably slower
-        Double_t yApprox = (yPost + yPre) / 2;
-        driftDistance = yApprox + fHalfSizeTPC_Y;
-        // cout<<"DriftDistance="<<driftDistance<<"	yApprox="<<yApprox<<endl;
-        sigmaLongAtPadPlane = sqrt(driftDistance * 2 * fLongDiff / fDriftVelocity);
-        sigmaTransvAtPadPlane = sqrt(driftDistance * 2 * fTransDiff / fDriftVelocity);
-
+        // Double_t yApprox = (yPost + yPre) / 2;
+        // driftDistance = yApprox + fHalfSizeTPC_Y;
+        // // cout<<"DriftDistance="<<driftDistance<<"	yApprox="<<yApprox<<endl;
+        // sigmaLongAtPadPlane = sqrt(driftDistance * 2 * fLongDiff / fDriftVelocity);
+        // sigmaTransvAtPadPlane = sqrt(driftDistance * 2 * fTransDiff / fDriftVelocity);
+        constexpr Double_t kTolerance = 1.e-6;
+        
         for (Int_t ele = 1; ele <= generatedElectrons; ele++) // following each electrons from production to pad
         {
-            driftTime = ((yPre + stepY * ele) + fHalfSizeTPC_Y) / fDriftVelocity;
-            projX = gRandom->Gaus(xPre + stepX * ele, sigmaTransvAtPadPlane);
-            projZ = gRandom->Gaus(zPre + stepZ * ele, sigmaTransvAtPadPlane);
+            // Double_t electronX = xPre + stepX * ele;
+            // Double_t electronY = yPre + stepY * ele;
+            // Double_t electronZ = zPre + stepZ * ele;
+
+            Double_t electronX = preLocal[0] + stepX * ele;
+            Double_t electronY = preLocal[1] + stepY * ele;
+            Double_t electronZ = preLocal[2] + stepZ * ele;
+
+            // Distance from this electron to the selected readout plane.
+            // +1 -> +Y: d = halfY - y
+            // -1 -> -Y: d = halfY + y
+            // driftDistance = fHalfSizeTPC_Y - fReadoutSide * electronY;
+            
+            // if (driftDistance < 0.) { 
+            //     LOG(warn) << "R3BGTPCProjector: electron outside selected drift region." << " y = " << electronY << " cm, halfY = " << fHalfSizeTPC_Y 
+            //     << " cm, readoutSide = " << fReadoutSide;
+            //     continue;
+            // }
+
+            // ---- Drift distance to the selected LOCAL readout surface
+            driftDistance = (fReadoutSide > 0) ? (fActiveMaxY - electronY) : (electronY - fActiveMinY);
+            
+            if (driftDistance < -kTolerance || driftDistance > fActiveSizeY + kTolerance) continue;
+ 
+            driftDistance = std::clamp(driftDistance, 0.0, fActiveSizeY);
+
+            // The line was old implimentation 
+            //driftTime = ((yPre + stepY * ele) + fHalfSizeTPC_Y) / fDriftVelocity;
+
+            driftTime = driftDistance / fDriftVelocity; // New
+
+            // Diffusion accumulated over this electron's own drift distance.
+            sigmaLongAtPadPlane = sqrt(2. * fLongDiff * driftDistance / fDriftVelocity);
+            sigmaTransvAtPadPlane = sqrt(2. * fTransDiff * driftDistance / fDriftVelocity);
+
+            //projX = gRandom->Gaus(xPre + stepX * ele, sigmaTransvAtPadPlane);
+            //projZ = gRandom->Gaus(zPre + stepZ * ele, sigmaTransvAtPadPlane);
+            //projTime = gRandom->Gaus(driftTime + timeBeforeDrift, sigmaLongAtPadPlane / fDriftVelocity);
+
+            projX = gRandom->Gaus(electronX, sigmaTransvAtPadPlane);
+            projZ = gRandom->Gaus(electronZ, sigmaTransvAtPadPlane);
             projTime = gRandom->Gaus(driftTime + timeBeforeDrift, sigmaLongAtPadPlane / fDriftVelocity);
+
             // cout<<"projTime="<<projTime<<"		driftTime="<<driftTime<<"
             // timeBeforeDrift="<<timeBeforeDrift<<endl; cout<<"ProjZ="<<projZ<<"
             // ProjX="<<projX<<endl; obtain padID for projX, projZ (simple algorithm)
@@ -326,18 +690,24 @@ void R3BGTPCProjector::Exec(Option_t*)
             // the laboratory frame
             // fOffsetX-x-> the first pad column in the laboratory frame
 
-            if (projZ < fOffsetZ)
-                projZ = fOffsetZ;
-            if (projZ > fOffsetZ + 2 * fHalfSizeTPC_Z)
-                projZ = fOffsetZ + 2 * fHalfSizeTPC_Z;
-            if (projX < fOffsetX)
-                projX = fOffsetX;
-            if (projX > fOffsetX + 2 * fHalfSizeTPC_X)
-                projX = fOffsetX + 2 * fHalfSizeTPC_X;
+            // if (projZ < fOffsetZ)
+            //     projZ = fOffsetZ;
+            // if (projZ > fOffsetZ + 2 * fHalfSizeTPC_Z)
+            //     projZ = fOffsetZ + 2 * fHalfSizeTPC_Z;
+            // if (projX < fOffsetX)
+            //     projX = fOffsetX;
+            // if (projX > fOffsetX + 2 * fHalfSizeTPC_X)
+            //     projX = fOffsetX + 2 * fHalfSizeTPC_X;
 
             // std::cout<<" proj Z "<<projZ<<" - proj Y "<<projY<<"\n";
-            Int_t padID = fPadPlane->Fill((projZ - fOffsetZ) * 10.0,
-                                          (projX - fOffsetX) * 10.0); // in mm
+            // Int_t padID = fPadPlane->Fill((projZ - fOffsetZ) * 10.0,
+            //                               (projX - fOffsetX) * 10.0); // in mm
+
+            // ---- Pad lookup (R3BGTPCMap expects offsets from the local minima)
+            Double_t planeX = projX - fActiveMinX;
+            Double_t planeZ = projZ - fActiveMinZ;
+            Int_t padID = fTPCMap->FindPad(planeZ, planeX); 
+            if (padID < 0) { continue; }                              
 
             if (outputMode == 0)
             { // Output: TClonesArray of R3BGTPCCalData
@@ -411,7 +781,12 @@ void R3BGTPCProjector::Exec(Option_t*)
         zPre = zPost;
 
     } // Simulated points
-    LOG(info) << "R3BGTPCProjector: produced " << fGTPCProjPoint->GetEntries() << " projPoints";
+    if (outputMode == 1 && fGTPCProjPoint) { 
+        LOG(info) << "R3BGTPCProjector: produced " << fGTPCProjPoint->GetEntriesFast() << " projPoints"; 
+    }
+    else if (outputMode == 0 && fGTPCCalDataCA) {
+        LOG(info) << "R3BGTPCProjector: produced " << fGTPCCalDataCA->GetEntriesFast() << " CalData objects";
+    }
 }
 
 void R3BGTPCProjector::Finish() {}
