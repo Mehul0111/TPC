@@ -67,28 +67,26 @@
 
 #include "R3BGTPCHitData.h"
 
-class HelixTrackModel
-{
+class HelixTrackModel {
 
-  public:
-    // Constructors/Destructors ---------
-    HelixTrackModel(const TVector3& pos, const TVector3& mom, double charge);
+public:
+  // Constructors/Destructors ---------
+  HelixTrackModel(const TVector3 &pos, const TVector3 &mom, double charge);
 
-    TVector3 getPos(double tracklength) const;
-    void getPosMom(double tracklength, TVector3& pos, TVector3& mom) const;
-    void getPosDir(double tracklength, TVector3& pos, TVector3& dir) const
-    {
-        getPosMom(tracklength, pos, dir);
-        dir.SetMag(1);
-    }
+  TVector3 getPos(double tracklength) const;
+  void getPosMom(double tracklength, TVector3 &pos, TVector3 &mom) const;
+  void getPosDir(double tracklength, TVector3 &pos, TVector3 &dir) const {
+    getPosMom(tracklength, pos, dir);
+    dir.SetMag(1);
+  }
 
-  private:
-    double sgn_;
-    double mom_;
-    double R_; // radius
-    TVector3 center_;
-    double alpha0_;
-    double theta_;
+private:
+  double sgn_;
+  double mom_;
+  double R_; // radius
+  TVector3 center_;
+  double alpha0_;
+  double theta_;
 
-  public:
+public:
 };

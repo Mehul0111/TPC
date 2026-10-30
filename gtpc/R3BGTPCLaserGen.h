@@ -38,91 +38,88 @@
  * GTPCProjPoint = TClonesArray("R3BGTPCProjPoint")
  */
 
-class R3BGTPCLaserGen : public FairTask
-{
-  public:
-    /** Default constructor **/
-    R3BGTPCLaserGen();
+class R3BGTPCLaserGen : public FairTask {
+public:
+  /** Default constructor **/
+  R3BGTPCLaserGen();
 
-    /** Destructor **/
-    ~R3BGTPCLaserGen();
+  /** Destructor **/
+  ~R3BGTPCLaserGen();
 
-    /** Virtual method Exec **/
-    void Exec(Option_t*);
+  /** Virtual method Exec **/
+  void Exec(Option_t *);
 
-    /** Set parameters -- To be removed when parameter containers are ready **/
-    void SetDriftParameters(Double_t ion, Double_t driftv, Double_t tDiff, Double_t lDiff, Double_t fanoFactor);
-    void SetLaserParameters(Double_t alpha,
-                            Double_t beta,
-                            Double_t x_in,
-                            Double_t y_in,
-                            Double_t z_in,
-                            Double_t maxLength);
-    void SetNumberOfGeneratedElectrons(Double_t ele);
-    void SetProjPointsAsOutput() { outputMode = 1; }
-    void SetCalDataAsOutput() { outputMode = 0; }
+  /** Set parameters -- To be removed when parameter containers are ready **/
+  void SetDriftParameters(Double_t ion, Double_t driftv, Double_t tDiff,
+                          Double_t lDiff, Double_t fanoFactor);
+  void SetLaserParameters(Double_t alpha, Double_t beta, Double_t x_in,
+                          Double_t y_in, Double_t z_in, Double_t maxLength);
+  void SetNumberOfGeneratedElectrons(Double_t ele);
+  void SetProjPointsAsOutput() { outputMode = 1; }
+  void SetCalDataAsOutput() { outputMode = 0; }
 
-  protected:
-    /** Virtual method Init **/
-    virtual InitStatus Init();
+protected:
+  /** Virtual method Init **/
+  virtual InitStatus Init();
 
-    /** Virtual method ReInit **/
-    virtual InitStatus ReInit();
+  /** Virtual method ReInit **/
+  virtual InitStatus ReInit();
 
-    /** Virtual method Finish **/
-    void Finish();
+  /** Virtual method Finish **/
+  void Finish();
 
-    /** Virtual method SetParContainers **/
-    void SetParContainers();
+  /** Virtual method SetParContainers **/
+  void SetParContainers();
 
-    TClonesArray* fGTPCPointsCA;
-    TClonesArray* fGTPCProjPointCA;
-    TClonesArray* fGTPCCalDataCA;
-    // MCTrack- vertex information
-    TClonesArray* MCTrackCA;
+  TClonesArray *fGTPCPointsCA;
+  TClonesArray *fGTPCProjPointCA;
+  TClonesArray *fGTPCCalDataCA;
+  // MCTrack- vertex information
+  TClonesArray *MCTrackCA;
 
-  private:
-    // Mapping of  virtualPadID to ProjPoint object pointer
+private:
+  // Mapping of  virtualPadID to ProjPoint object pointer
 
-    void SetParameter();
+  void SetParameter();
 
-    std::map<Int_t, R3BGTPCProjPoint*> fProjPointMap;
+  std::map<Int_t, R3BGTPCProjPoint *> fProjPointMap;
 
-    Double_t fEIonization;   //!< Effective ionization energy of gas [eV] NOTUSED
-    Double_t fDriftVelocity; //!< Drift velocity in gas [cm/ns]
-    Double_t fTransDiff;     //!< Transversal diffusion coefficient [cm^2/ns]
-    Double_t fLongDiff;      //!< Longitudinal diffusion coefficient [cm^2/ns]
-    Double_t fFanoFactor;    //!< Fano factor to calculate electron number
-                             //!< fluctuations NOTUSED
-    Double_t fHalfSizeTPC_X; //!< Half size X of the TPC drift volume [cm]
-    Double_t fHalfSizeTPC_Y; //!< Half size Y of the TPC drift volume [cm]
-    Double_t fHalfSizeTPC_Z; //!< Half size Z of the TPC drift volume [cm]
-    Double_t fDriftEField;
-    Double_t fDriftTimeStep;
-    Double_t fTimeBinSize;
-    Double_t fAlpha;
-    Double_t fBeta;
-    Double_t fXIn;
-    Double_t fYIn;
-    Double_t fZIn;
-    Double_t fMaxLength;
-    Double_t fOffsetX;
-    Double_t fOffsetZ;
-    Double_t fTargetOffsetX;
-    Double_t fTargetOffsetY;
-    Double_t fTargetOffsetZ;
+  Double_t fEIonization;   //!< Effective ionization energy of gas [eV] NOTUSED
+  Double_t fDriftVelocity; //!< Drift velocity in gas [cm/ns]
+  Double_t fTransDiff;     //!< Transversal diffusion coefficient [cm^2/ns]
+  Double_t fLongDiff;      //!< Longitudinal diffusion coefficient [cm^2/ns]
+  Double_t fFanoFactor;    //!< Fano factor to calculate electron number
+                           //!< fluctuations NOTUSED
+  Double_t fHalfSizeTPC_X; //!< Half size X of the TPC drift volume [cm]
+  Double_t fHalfSizeTPC_Y; //!< Half size Y of the TPC drift volume [cm]
+  Double_t fHalfSizeTPC_Z; //!< Half size Z of the TPC drift volume [cm]
+  Double_t fDriftEField;
+  Double_t fDriftTimeStep;
+  Double_t fTimeBinSize;
+  Double_t fAlpha;
+  Double_t fBeta;
+  Double_t fXIn;
+  Double_t fYIn;
+  Double_t fZIn;
+  Double_t fMaxLength;
+  Double_t fOffsetX;
+  Double_t fOffsetZ;
+  Double_t fTargetOffsetX;
+  Double_t fTargetOffsetY;
+  Double_t fTargetOffsetZ;
 
-    Int_t outputMode; //!< Selects Cal(0) or ProjPoint(1) as output level. Default 0
+  Int_t
+      outputMode; //!< Selects Cal(0) or ProjPoint(1) as output level. Default 0
 
-    Int_t fNumberOfGeneratedElectrons; //!< Number of electrons to generate in
-                                       //!< each point of the test
+  Int_t fNumberOfGeneratedElectrons; //!< Number of electrons to generate in
+                                     //!< each point of the test
 
-    R3BGTPCGeoPar* fGTPCGeoPar;   //!< Geometry parameter container
-    R3BGTPCGasPar* fGTPCGasPar;   //!< Gas parameter container
-    R3BGTPCElecPar* fGTPCElecPar; //!< Electronic parameter container
+  R3BGTPCGeoPar *fGTPCGeoPar;   //!< Geometry parameter container
+  R3BGTPCGasPar *fGTPCGasPar;   //!< Gas parameter container
+  R3BGTPCElecPar *fGTPCElecPar; //!< Electronic parameter container
 
-    std::shared_ptr<R3BGTPCMap> fTPCMap;
-    TH2Poly* fPadPlane;
+  std::shared_ptr<R3BGTPCMap> fTPCMap;
+  TH2Poly *fPadPlane;
 
-    ClassDef(R3BGTPCLaserGen, 1)
+  ClassDef(R3BGTPCLaserGen, 1)
 };

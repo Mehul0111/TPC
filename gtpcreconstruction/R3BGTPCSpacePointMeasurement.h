@@ -24,27 +24,26 @@ class TBuffer;
 class TClass;
 class TMemberInspector;
 
-namespace genfit
-{
-    class AbsMeasurement;
-    class TrackCandHit;
+namespace genfit {
+class AbsMeasurement;
+class TrackCandHit;
 
-    class R3BGTPCSpacepointMeasurement : public SpacepointMeasurement
-    {
+class R3BGTPCSpacepointMeasurement : public SpacepointMeasurement {
 
-      public:
-        R3BGTPCSpacepointMeasurement();
-        R3BGTPCSpacepointMeasurement(const R3BGTPCHitClusterData* detHit, const TrackCandHit* hit);
+public:
+  R3BGTPCSpacepointMeasurement();
+  R3BGTPCSpacepointMeasurement(const R3BGTPCHitClusterData *detHit,
+                               const TrackCandHit *hit);
 
-        virtual AbsMeasurement* clone() const;
+  virtual AbsMeasurement *clone() const;
 
-        Double_t GetCharge();
+  Double_t GetCharge();
 
-      private:
-        Double_t fCharge{};
+private:
+  Double_t fCharge{};
 
-        ClassDef(R3BGTPCSpacepointMeasurement, 1)
-    };
+  ClassDef(R3BGTPCSpacepointMeasurement, 1)
+};
 
 } /* End of namespace genfit */
 

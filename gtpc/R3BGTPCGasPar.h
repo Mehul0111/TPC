@@ -22,50 +22,50 @@ using namespace std;
 
 class FairParamList;
 
-class R3BGTPCGasPar : public FairParGenericSet
-{
+class R3BGTPCGasPar : public FairParGenericSet {
 
-  public:
-    R3BGTPCGasPar(const char* name = "GTPCGasPar",
-                  const char* title = "GTPC Gas Parameters",
-                  const char* context = "GTPCGasParContext");
+public:
+  R3BGTPCGasPar(const char *name = "GTPCGasPar",
+                const char *title = "GTPC Gas Parameters",
+                const char *context = "GTPCGasParContext");
 
-    ~R3BGTPCGasPar();
+  ~R3BGTPCGasPar();
 
-    /** Reset all parameters **/
-    virtual void clear();
+  /** Reset all parameters **/
+  virtual void clear();
 
-    /** Store all parameters using FairRuntimeDB **/
-    virtual void putParams(FairParamList* list);
+  /** Store all parameters using FairRuntimeDB **/
+  virtual void putParams(FairParamList *list);
 
-    /** Retrieve all parameters using FairRuntimeDB**/
-    Bool_t getParams(FairParamList* list);
+  /** Retrieve all parameters using FairRuntimeDB**/
+  Bool_t getParams(FairParamList *list);
 
-    /** Print values of parameters to the standard output **/
-    virtual void print();
-    void printParams();
+  /** Print values of parameters to the standard output **/
+  virtual void print();
+  void printParams();
 
-    /** Accessor functions **/
-    const Double_t GetLongDiff() { return LongDiff; }
-    const Double_t GetTransDiff() { return TransDiff; }
-    const Double_t GetFanoFactor() { return FanoFactor; }
-    const Double_t GetEIonization() { return EIonization; }
-    const Double_t GetDriftVelocity() { return DriftVelocity; }
+  /** Accessor functions **/
+  const Double_t GetLongDiff() { return LongDiff; }
+  const Double_t GetTransDiff() { return TransDiff; }
+  const Double_t GetFanoFactor() { return FanoFactor; }
+  const Double_t GetEIonization() { return EIonization; }
+  const Double_t GetDriftVelocity() { return DriftVelocity; }
 
-    void SetLongDiff(Double_t value) { LongDiff = value; }
-    void SetTransDiff(Double_t value) { TransDiff = value; }
-    void SetFanoFactor(Double_t value) { FanoFactor = value; }
-    void SetEIonization(Double_t value) { EIonization = value; }
-    void SetDriftVelocity(Double_t value) { DriftVelocity = value; }
+  void SetLongDiff(Double_t value) { LongDiff = value; }
+  void SetTransDiff(Double_t value) { TransDiff = value; }
+  void SetFanoFactor(Double_t value) { FanoFactor = value; }
+  void SetEIonization(Double_t value) { EIonization = value; }
+  void SetDriftVelocity(Double_t value) { DriftVelocity = value; }
 
-  private:
-    Double_t LongDiff, TransDiff; // [cm^2/ns]
-    Double_t FanoFactor;
-    Double_t EIonization;   // [GeV]
-    Double_t DriftVelocity; // [cm/ns]
+private:
+  Double_t LongDiff, TransDiff; // [cm^2/ns]
+  Double_t FanoFactor;
+  Double_t EIonization;   // [GeV]
+  Double_t DriftVelocity; // [cm/ns]
 
-    const R3BGTPCGasPar& operator=(const R3BGTPCGasPar&); /*< an assignment operator>*/
-    R3BGTPCGasPar(const R3BGTPCGasPar&);                  /*< a copy constructor >*/
+  const R3BGTPCGasPar &
+  operator=(const R3BGTPCGasPar &);     /*< an assignment operator>*/
+  R3BGTPCGasPar(const R3BGTPCGasPar &); /*< a copy constructor >*/
 
-    ClassDef(R3BGTPCGasPar, 1)
+  ClassDef(R3BGTPCGasPar, 1)
 };

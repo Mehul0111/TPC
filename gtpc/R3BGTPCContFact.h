@@ -21,14 +21,13 @@ class FairContainer;
  * GTPC parameter container factory
  */
 
-class R3BGTPCContFact : public FairContFact
-{
-  private:
-    void setAllContainers();
+class R3BGTPCContFact : public FairContFact {
+private:
+  void setAllContainers();
 
-  public:
-    R3BGTPCContFact();
-    //~R3BGTPCContFact() {}
-    FairParSet* createContainer(FairContainer*) override;
-    ClassDefOverride(R3BGTPCContFact, 0)
+public:
+  R3BGTPCContFact();
+  //~R3BGTPCContFact() {}
+  FairParSet *createContainer(FairContainer *) override;
+  ClassDefOverride(R3BGTPCContFact, 0)
 };
